@@ -1,0 +1,38 @@
+export enum WillStatus {
+  DRAFT = 'DRAFT',
+  IN_REVIEW = 'IN_REVIEW',
+  FINALIZED = 'FINALIZED',
+}
+
+export enum AssetType {
+  BANK_ACCOUNT = 'BANK_ACCOUNT',
+  JEWELLERY = 'JEWELLERY',
+  VEHICLE = 'VEHICLE',
+  PROPERTY = 'PROPERTY',
+  INVESTMENT = 'INVESTMENT',
+  OTHER = 'OTHER',
+}
+
+export enum ConversationStatus {
+  ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum MessageRole {
+  USER = 'user',
+  ASSISTANT = 'assistant',
+  SYSTEM = 'system',
+}
+
+export enum InterviewStage {
+  TESTATOR_DETAILS = 'TESTATOR_DETAILS',
+  BENEFICIARIES = 'BENEFICIARIES',
+  ASSETS = 'ASSETS',
+  ASSET_ALLOCATIONS = 'ASSET_ALLOCATIONS',
+  EXECUTOR = 'EXECUTOR',
+  GUARDIAN = 'GUARDIAN',
+  WITNESSES = 'WITNESSES',
+  REVIEW = 'REVIEW',
+  COMPLETE = 'COMPLETE',
+}

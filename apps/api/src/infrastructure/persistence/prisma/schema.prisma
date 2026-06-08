@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WillStatus {
+  DRAFT
+  IN_REVIEW
+  FINALIZED
+}
+
+enum AssetType {
+  BANK_ACCOUNT
+  JEWELLERY
+  VEHICLE
+  PROPERTY
+  INVESTMENT
+  OTHER
+}
+
+enum ConversationStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  wills         Will[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Will {
+  id               String     @id @default(uuid()) @db.Uuid
+  userId           String     @map("user_id") @db.Uuid
+  title            String
+  status           WillStatus @default(DRAFT)
+  revision         Int        @default(1)
+  testatorName     String?    @map("testator_name")
+  testatorAge      Int?       @map("testator_age")
+  testatorAddress  String?    @map("testator_address")
+  soundMindDeclaration Boolean? @map("sound_mind_declaration")
+  revokesPreviousWills Boolean? @map("revokes_previous_wills")
+  executionDate    DateTime?  @map("execution_date") @db.Date
+  executionPlace   String?    @map("execution_place")
+  testatorSignatureLine Boolean? @map("testator_signature_line")
+  witnessSignatureLines Boolean? @map("witness_signature_lines")
+  metadata         Json?
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  beneficiaries        Beneficiary[]
+  assets               Asset[]
+  assetAllocations     AssetAllocation[]
+  executors            Executor[]
+  guardians            Guardian[]
+  witnesses            Witness[]
+  conversations        Conversation[]
+  versions             WillVersion[]
+  auditLogs            AuditLog[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("wills")
+}
+
+model Beneficiary {
+  id            String    @id @default(uuid()) @db.Uuid
+  willId        String    @map("will_id") @db.Uuid
+  fullName      String    @map("full_name")
+  relationship  String
+  priorityOrder Int       @default(0) @map("priority_order")
+  dateOfBirth   DateTime? @map("date_of_birth") @db.Date
+  age           Int?
+  isMinor       Boolean?  @map("is_minor")
+  contactEmail  String?   @map("contact_email")
+  addressLine1  String?   @map("address_line1")
+  city          String?
+  state         String?
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  will                 Will                  @relation(fields: [willId], references: [id], onDelete: Cascade)
+  assetAllocations     AssetAllocation[]
+  guardians            Guardian[]
+
+  @@index([willId])
+  @@map("beneficiaries")
+}
+
+model Asset {
+  id             String    @id @default(uuid()) @db.Uuid
+  willId         String    @map("will_id") @db.Uuid
+  type           AssetType
+  description    String
+  userLabel      String?   @map("user_label")
+  estimatedValue           Decimal?  @map("estimated_value") @db.Decimal(15, 2)
+  currency                 String    @default("USD")
+  locationOrAccountDetails String?   @map("location_or_account_details")
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  will         Will              @relation(fields: [willId], references: [id], onDelete: Cascade)
+  allocations  AssetAllocation[]
+
+  @@index([willId])
+  @@map("assets")
+}
+
+model AssetAllocation {
+  id            String  @id @default(uuid()) @db.Uuid
+  willId        String  @map("will_id") @db.Uuid
+  assetId       String  @map("asset_id") @db.Uuid
+  beneficiaryId String  @map("beneficiary_id") @db.Uuid
+  sharePct      Decimal @map("share_pct") @db.Decimal(5, 2)
+
+  will        Will        @relation(fields: [willId], references: [id], onDelete: Cascade)
+  asset       Asset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  beneficiary Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, beneficiaryId])
+  @@index([willId])
+  @@index([assetId])
+  @@index([beneficiaryId])
+  @@map("asset_allocations")
+}
+
+model Executor {
+  id        String   @id @default(uuid()) @db.Uuid
+  willId    String   @map("will_id") @db.Uuid
+  fullName  String   @map("full_name")
+  email     String?
+  isPrimary Boolean  @default(false) @map("is_primary")
+  order     Int      @default(0)
+  relationship String?
+  address   String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  will Will @relation(fields: [willId], references: [id], onDelete: Cascade)
+
+  @@index([willId])
+  @@map("executors")
+}
+
+model Guardian {
+  id                String   @id @default(uuid()) @db.Uuid
+  willId            String   @map("will_id") @db.Uuid
+  wardBeneficiaryId String   @map("ward_beneficiary_id") @db.Uuid
+  fullName          String   @map("full_name")
+  relationship      String
+  address           String?
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  will            Will        @relation(fields: [willId], references: [id], onDelete: Cascade)
+  wardBeneficiary Beneficiary @relation(fields: [wardBeneficiaryId], references: [id], onDelete: Cascade)
+
+  @@unique([willId, wardBeneficiaryId])
+  @@index([willId])
+  @@index([wardBeneficiaryId])
+  @@map("guardians")
+}
+
+model Witness {
+  id           String   @id @default(uuid()) @db.Uuid
+  willId       String   @map("will_id") @db.Uuid
+  fullName     String   @map("full_name")
+  addressLine1 String   @map("address_line1")
+  city         String
+  state        String
+  witnessOrder Int      @map("witness_order")
+  address      String?
+  isBeneficiary Boolean? @map("is_beneficiary")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  will Will @relation(fields: [willId], references: [id], onDelete: Cascade)
+
+  @@unique([willId, witnessOrder])
+  @@index([willId])
+  @@map("witnesses")
+}
+
+model Conversation {
+  id         String             @id @default(uuid()) @db.Uuid
+  willId     String             @map("will_id") @db.Uuid
+  status     ConversationStatus @default(ACTIVE)
+  aiProvider String             @map("ai_provider")
+  summary    String?
+  startedAt  DateTime           @default(now()) @map("started_at") @db.Timestamptz
+  endedAt    DateTime?          @map("ended_at") @db.Timestamptz
+
+  will      Will                        @relation(fields: [willId], references: [id], onDelete: Cascade)
+  memories  ConversationMemory[]
+  messages  ConversationMessage[]
+  snapshots ConversationMemorySnapshot[]
+
+  @@index([willId])
+  @@index([status])
+  @@map("conversations")
+}
+
+model ConversationMemorySnapshot {
+  id              String   @id @default(uuid()) @db.Uuid
+  conversationId  String   @map("conversation_id") @db.Uuid
+  summary         String
+  messageCount    Int      @map("message_count")
+  factCount       Int      @map("fact_count")
+  strategy        String
+  estimatedTokens Int?     @map("estimated_tokens")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("conversation_memory_snapshots")
+}
+
+model ConversationMessage {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  role           String
+  content        String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("conversation_messages")
+}
+
+model ConversationMemory {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  factKey        String   @map("fact_key")
+  factValue      Json     @map("fact_value")
+  confidence     Float
+  source         String   @default("ai_extraction")
+  extractedAt    DateTime @default(now()) @map("extracted_at") @db.Timestamptz
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, factKey])
+  @@index([conversationId])
+  @@map("conversation_memories")
+}
+
+model WillVersion {
+  id            String   @id @default(uuid()) @db.Uuid
+  willId        String   @map("will_id") @db.Uuid
+  versionNumber Int      @map("version_number")
+  snapshot      Json
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  will Will @relation(fields: [willId], references: [id], onDelete: Cascade)
+
+  @@unique([willId, versionNumber])
+  @@index([willId])
+  @@map("will_versions")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  willId      String   @map("will_id") @db.Uuid
+  actorUserId String   @map("actor_user_id") @db.Uuid
+  action      String
+  payload     Json
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz
+
+  will  Will @relation(fields: [willId], references: [id], onDelete: Cascade)
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  @@index([willId])
+  @@index([actorUserId])
+  @@index([occurredAt])
+  @@map("audit_logs")
+}
