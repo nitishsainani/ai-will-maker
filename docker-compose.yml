@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: willmaker
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: willmaker
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U willmaker']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - '4000:4000'
+    env_file:
+      - apps/api/.env
+    environment:
+      # Override host-local values from .env for in-compose networking
+      DATABASE_URL: postgresql://willmaker:secret@postgres:5432/willmaker
+      WEB_ORIGIN: http://localhost:3000
+      API_PORT: 4000
+      MEMORY_STRATEGY: hybrid
+      MEMORY_RECENT_MESSAGE_COUNT: 6
+      MEMORY_FULL_CONTEXT_THRESHOLD: 12
+      MEMORY_SUMMARY_REFRESH_INTERVAL: 4
+      DOCUMENT_FORMAT: pdf
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

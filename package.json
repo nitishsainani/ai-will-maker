@@ -1,0 +1,15 @@
+{
+  "name": "ai-will-maker",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @will-maker/shared-kernel && npm run build -w @will-maker/will-contract && npm run build -w @will-maker/will-domain && npm run build -w @will-maker/api && npm run build -w @will-maker/web",
+    "typecheck": "npm run build -w @will-maker/shared-kernel && npm run build -w @will-maker/will-contract && npm run typecheck -w @will-maker/will-domain && npm run typecheck -w @will-maker/api && npm run typecheck -w @will-maker/web",
+    "dev:api": "npm run start:dev -w @will-maker/api",
+    "dev:web": "npm run dev -w @will-maker/web",
+    "test": "npm run test -w @will-maker/will-domain && npm run test -w @will-maker/api"
+  }
+}
